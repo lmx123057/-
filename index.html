@@ -1,309 +1,733 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三潭印月 · 西湖十景</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <style>
-        /* 自定义动画 */
-        @keyframes float {
-            0% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-            100% { transform: translateY(0); }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>苏堤春晓 - 拖拽拼图</title>
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 自定义配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jiangnan: {
+              green: '#82C3EC', // 柳绿
+              pink: '#FF9ED2',  // 桃粉
+              blue: '#1890FF',  // 湖蓝
+              gray: '#E8F4F8',  // 烟雨灰
+              dark: '#2A5768'   // 墨色
+            }
+          },
+          fontFamily: {
+            kai: ['KaiTi', 'STKaiti', 'serif'], // 楷体适配
+            song: ['SimSun', 'STSong', 'serif'] // 宋体适配
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-in-out',
+            'scale-up': 'scaleUp 0.3s ease-out',
+            'success': 'successBounce 1s ease-in-out',
+            'shake': 'shake 0.3s ease-in-out',
+            'correct': 'correctPulse 0.5s ease-in-out'
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' }
+            },
+            scaleUp: {
+              '0%': { transform: 'scale(0.9)' },
+              '100%': { transform: 'scale(1)' }
+            },
+            successBounce: {
+              '0%, 100%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.05)' },
+              '75%': { transform: 'scale(0.98)' }
+            },
+            shake: {
+              '0%, 100%': { transform: 'translate(0)' },
+              '25%': { transform: 'translate(-5px, 0)' },
+              '75%': { transform: 'translate(5px, 0)' }
+            },
+            correctPulse: {
+              '0%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.05)', boxShadow: '0 0 15px rgba(130, 195, 236, 0.8)' },
+              '100%': { transform: 'scale(1)' }
+            }
+          }
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-float { animation: float 5s infinite ease-in-out; }
-        .animate-fadeIn { animation: fadeIn 1s ease forwards; }
-        .text-shadow { text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .bg-water { background: linear-gradient(to bottom, #e0f7fa 0%, #b2ebf2 100%); }
-        .tower-img:hover { filter: brightness(1.05); cursor: pointer; }
-        
-        /* 核心：分层布局，石塔层置顶 */
-        .tower-container {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10; /* 确保石塔在背景上方 */
-        }
-        /* 小石塔样式，统一控制尺寸和布局 */
-        .small-tower {
-            max-width: 15%; /* 小石塔尺寸，远小于原石塔 */
-            max-height: 40%;
-            object-fit: contain;
-            z-index: 10;
-            animation: float 6s infinite ease-in-out; /* 独立动画时长，更自然 */
-        }
-        /* 图片加载失败时显示备用样式，方便排查 */
-        img {
-            display: block; /* 解决间隙问题 */
-        }
-
-        /* ########## 优化后：左右排列画卷核心样式 ########## */
-        /* 外层容器：优化左右布局协调性 */
-        .scroll-left-right-container {
-            max-width: 7xl; /* 适当加宽外层容器，避免画卷拥挤 */
-            margin: 0 auto;
-            display: flex;
-            justify-content: center; /* 居中对齐，比两端对齐更美观 */
-            align-items: flex-start; /* 顶部对齐，视觉更整洁 */
-            gap: 6rem; /* 增大间距，避免视觉拥挤（比4rem更舒适） */
-            padding: 0 4px;
-            flex-wrap: wrap; /* 移动端换行适配 */
-        }
-        /* 单个画卷容器：统一尺寸，增加悬浮效果 */
-        .single-scroll-container {
-            flex: 0 0 40%; /* 固定宽度占比，确保左右画卷大小完全一致 */
-            min-width: 300px; /* 增大最小宽度，避免移动端挤压 */
-            max-width: 2xl;
-            overflow: hidden;
-            position: relative;
-            transition: transform 0.3s ease-in-out; /* 悬浮缩放动画 */
-        }
-        /* 画卷悬浮轻微放大，增加交互质感 */
-        .single-scroll-container:hover {
-            transform: scale(1.02);
-        }
-        /* 单个画卷背景：强化仿古质感 */
-        .single-scroll-bg {
-            background: url('https://img.58pic.com/58pic/17/08/26/58PIC1708264c3809787_1024.jpg') no-repeat center;
-            background-size: cover;
-            border: 3px solid #7a3e1b; /* 加深边框颜色，更贴近古木卷轴 */
-            border-radius: 6px; /* 轻微圆角，更柔和（避免直角生硬） */
-            box-shadow: 0 8px 16px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.1); /* 双层阴影，增加立体感 */
-            padding: 2.5rem; /* 增大内边距，让诗词内容不拥挤 */
-            position: relative;
-            width: 0;
-            height: auto;
-            transition: width 2.2s ease-in-out; /* 稍微放慢展开速度，更优雅 */
-            margin: 0 auto;
-            background-color: rgba(250, 245, 230, 0.9); /* 叠加米黄色背景，提升文字可读性 */
-        }
-        /* 画卷展开状态 */
-        .single-scroll-bg.active {
-            width: 100%;
-        }
-        /* 单个画卷轴：优化细节，更逼真 */
-        .single-scroll-axis {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 18px; /* 加宽卷轴，更醒目 */
-            background: linear-gradient(to top, #5a3016, #8B4513, #5a3016); /* 渐变效果，更贴近真实木轴 */
-            border-radius: 3px; /* 卷轴圆角，更自然 */
-            z-index: 2;
-            box-shadow: inset 0 0 4px rgba(0,0,0,0.3); /* 内阴影，增加立体感 */
-        }
-        .single-scroll-axis.left {
-            left: 0;
-        }
-        .single-scroll-axis.right {
-            right: 0;
-        }
-        /* 诗词内容：优化文字样式，提升美观度 */
-        .poem-content {
-            opacity: 0;
-            transition: opacity 1.2s ease-in-out 0.6s; /* 延迟显示，配合画卷展开节奏 */
-            color: #2d2d2d; /* 深灰色文字，比纯黑更柔和，更护眼 */
-            text-align: center; /* 文字居中，更整洁 */
-            font-family: "楷体", "宋体", serif; /* 使用书法字体，贴合古风 */
-        }
-        .single-scroll-bg.active .poem-content {
-            opacity: 1;
-        }
-        /* 诗词标题：强化样式 */
-        .poem-content h3 {
-            color: #6b2f08; /* 棕红色标题，贴合古画风格 */
-            margin-bottom: 1rem;
-            font-size: 1.5rem; /* 增大标题字体 */
-            border-bottom: 2px solid #d4b894; /* 底部边框，分隔标题和内容 */
-            padding-bottom: 0.5rem;
-            display: inline-block; /* 让边框宽度适配标题 */
-        }
-        /* 诗词作者：优化样式 */
-        .poem-content p:nth-child(2) {
-            color: #8a5a38;
-            margin-bottom: 1.2rem;
-            font-style: italic;
-            font-size: 1rem;
-        }
-        /* 诗词正文：优化行高，提升可读性 */
-        .poem-content p:last-child {
-            line-height: 2; /* 增大行高，避免文字拥挤 */
-            font-size: 1.1rem;
-            white-space: pre-line; /* 保留换行，让诗词排版更美观 */
-        }
-    </style>
+      }
+    }
+  </script>
+  
+  <!-- 自定义样式 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .puzzle-cell {
+        @apply relative border-2 border-jiangnan-gray/30 rounded-lg overflow-hidden flex items-center justify-center bg-white/80 transition-all duration-300 hover:border-jiangnan-green/50;
+      }
+      .puzzle-cell.filled {
+        @apply border-jiangnan-green/80 bg-white;
+      }
+      .puzzle-cell.incorrect {
+        @apply border-red-400 animate-shake;
+      }
+      .puzzle-cell.correct {
+        @apply border-jiangnan-green/80 animate-correct;
+      }
+      .source-img {
+        @apply rounded-lg shadow-md cursor-grab transition-all duration-300 hover:shadow-lg hover:scale-[1.02] select-none;
+      }
+      .source-img.dragging {
+        @apply opacity-70 cursor-grabbing scale-[0.98];
+      }
+      .puzzle-img {
+        @apply rounded-lg shadow-md cursor-grab transition-all duration-300 hover:shadow-lg hover:scale-[1.02] select-none w-full h-full;
+      }
+      .game-container {
+        @apply mx-auto rounded-2xl overflow-hidden bg-jiangnan-gray/50 shadow-xl p-4;
+      }
+      .btn-jiangnan {
+        @apply px-6 py-3 rounded-lg font-kai text-lg transition-all hover:shadow-lg active:scale-95;
+      }
+    }
+    
+    /* 水墨纹理背景 */
+    body {
+      background-image: url('https://picsum.photos/id/175/2000/1200');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-blend-mode: overlay;
+      background-color: rgba(255, 255, 255, 0.85);
+    }
+    
+    /* 拖拽样式 - 关键修复：确保拖拽元素可被识别 */
+    [draggable="true"] {
+      user-select: none;
+      -webkit-user-drag: element; /* 兼容Safari */
+    }
+    
+    .drop-zone-highlight {
+      border-color: #82C3EC !important;
+      background-color: rgba(130, 195, 236, 0.1) !important;
+    }
+    
+    /* 确保图片元素层级正确 */
+    .puzzle-cell img {
+      z-index: 10;
+      position: relative;
+    }
+    
+    .placeholder {
+      z-index: 1;
+      position: absolute;
+    }
+  </style>
 </head>
-<body class="bg-water min-h-screen overflow-x-hidden">
-    <!-- 顶部标题区：使用湖景图（你的湖景图.jpg.jpg） -->
-    <header class="relative h-96 flex items-center justify-center overflow-hidden">
-        <div class="absolute inset-0 z-0">
-            <img 
-                src="你的湖景图.jpg.jpg" 
-                alt="三潭印月全景" 
-                class="w-full h-full object-cover opacity-80"
-                onerror="this.src='https://img.58pic.com/58pic/23/23/84/58PIC23238498b8409787_1024.jpg'; this.onerror=null;"
-            >
-            <div class="absolute inset-0 bg-black/30"></div>
+<body class="min-h-screen font-song text-jiangnan-dark">
+  <!-- 页面头部 -->
+  <header class="py-6 px-4 bg-white/80 backdrop-blur-sm shadow-md mb-8">
+    <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+      <h1 class="text-[clamp(1.8rem,4vw,3rem)] font-kai font-bold text-jiangnan-blue mb-4 md:mb-0">
+        <i class="fa fa-pagelines text-jiangnan-pink mr-3"></i>苏堤春晓 · 拖拽拼图
+      </h1>
+      <div class="flex flex-wrap gap-3 items-center">
+        <button id="restart-btn" class="btn-jiangnan bg-jiangnan-blue text-white">
+          <i class="fa fa-refresh mr-2"></i>重新开始
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 游戏主区域 -->
+  <main class="container mx-auto px-4 pb-16">
+    <!-- 游戏信息面板 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 max-w-6xl mx-auto">
+      <div class="bg-white/90 rounded-xl p-4 shadow-md animate-fade-in">
+        <h3 class="font-kai text-lg mb-1 flex items-center">
+          <i class="fa fa-check-circle text-jiangnan-green mr-2"></i>已完成
+        </h3>
+        <p id="completed-count" class="text-xl font-bold">0/9</p>
+      </div>
+      <div class="bg-white/90 rounded-xl p-4 shadow-md animate-fade-in">
+        <button id="hint-btn" class="w-full btn-jiangnan bg-jiangnan-pink text-white">
+          <i class="fa fa-lightbulb-o mr-2"></i>提示 (3次)
+        </button>
+      </div>
+    </div>
+    
+    <!-- 游戏布局：左侧原图区，右侧拼图区 -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+      <!-- 左侧原图区域 -->
+      <div class="lg:col-span-1 bg-white/90 rounded-2xl p-4 shadow-xl animate-fade-in">
+        <h2 class="font-kai text-xl mb-4 text-center text-jiangnan-dark">
+          <i class="fa fa-th-large mr-2 text-jiangnan-pink"></i>素材区
+        </h2>
+        <div id="source-images" class="grid grid-cols-3 gap-3">
+          <!-- 原图会通过JS动态生成 -->
         </div>
-        <div class="relative z-10 text-center text-white animate-fadeIn">
-            <h1 class="text-5xl md:text-7xl font-serif font-bold text-shadow mb-4">三潭印月</h1>
-            <p class="text-xl md:text-2xl italic text-shadow">“一湖金水欲溶秋，三塔分占一月印”</p>
+        <p class="text-sm text-gray-500 mt-4 text-center">
+          点击并拖动图片到右侧拼图区，可自由调整位置
+        </p>
+      </div>
+      
+      <!-- 右侧拼图区域 -->
+      <div class="lg:col-span-3 animate-fade-in">
+        <div class="game-container">
+          <h2 class="font-kai text-xl mb-4 text-center text-jiangnan-dark">
+            <i class="fa fa-puzzle-piece mr-2 text-jiangnan-green"></i>拼图区 (3×3)
+          </h2>
+          <!-- 九宫格拼图容器 -->
+          <div id="puzzle-grid" class="grid grid-cols-3 gap-2 aspect-square max-w-xl mx-auto">
+            <!-- 拼图格子会通过JS动态生成 -->
+          </div>
         </div>
-    </header>
-
-    <!-- 石塔核心展示区：背景用湖景图，中层用原石塔+新增小石塔 -->
-    <section class="relative py-16 px-4 md:px-0">
-        <div class="max-w-6xl mx-auto text-center mb-12">
-            <h2 class="text-3xl font-serif text-gray-800 mb-4">石塔·映月奇观</h2>
-            <p class="text-gray-600 max-w-3xl mx-auto">
-                三潭印月的三座石塔，始建于北宋苏轼疏浚西湖时的“界塔”，现存为明代重建。塔高2.5米，球形塔身开5孔，中秋夜塔内点烛、蒙薄纸，烛光透孔如“月”，与月影交织出“33个月亮”的奇景。
-            </p>
-        </div>
-
-        <!-- 石塔展示容器 - 分层布局（新增小石塔，调整原石塔尺寸） -->
-        <div class="relative max-w-4xl mx-auto h-96 md:h-[500px] rounded-2xl overflow-hidden border-2 border-blue-400">
-            <!-- 1. 湖水背景层（最底层：精准使用你的湖景图） -->
-            <img 
-                src="你的湖景图.jpg.jpg"
-                alt="西湖湖景背景" 
-                class="absolute inset-0 w-full h-full object-cover z-1"
-                onerror="this.src='https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/a330315982394c8ebb06915cf1f80ec8.jpg~tplv-a9rns2rl98-image.png'; this.onerror=null;"
-            >
-            
-            <!-- 2. 石塔层（中层置顶：原石塔缩小尺寸 + 新增多个小石塔，布局在湖面上） -->
-            <div class="tower-container">
-                <!-- 原石塔：缩小尺寸（max-width从40%改为25%，max-height从90%改为60%） -->
-                <img 
-                    src="石塔图片.png.png"
-                    alt="三潭印月主石塔" 
-                    class="tower-img animate-float"
-                    style="max-width: 25%; max-height: 60%; object-fit: contain; z-index: 10;"
-                    onerror="this.src='https://img.baidu.com/it/u=123456789,0&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=500'; this.onerror=null;"
-                >
-
-                <!-- 新增小石塔1：左侧湖面上 -->
-                <img 
-                    src="石塔图片.png.png"
-                    alt="三潭印月小石塔1" 
-                    class="small-tower absolute left-20 top-1/3"
-                    onerror="this.src='https://img.baidu.com/it/u=123456789,0&fm=253&fmt=auto&app=138&f=JPEG?w=300&h=300'; this.onerror=null;"
-                >
-
-                <!-- 新增小石塔2：右侧湖面上 -->
-                <img 
-                    src="石塔图片.png.png"
-                    alt="三潭印月小石塔2" 
-                    class="small-tower absolute right-20 top-1/2"
-                    onerror="this.src='https://img.baidu.com/it/u=123456789,0&fm=253&fmt=auto&app=138&f=JPEG?w=300&h=300'; this.onerror=null;"
-                >
-
-                <!-- 新增小石塔3：左下方湖面上（可选，可删除） -->
-                <img 
-                    src="石塔图片.png.png"
-                    alt="三潭印月小石塔3" 
-                    class="small-tower absolute left-1/4 bottom-20"
-                    onerror="this.src='https://img.baidu.com/it/u=123456789,0&fm=253&fmt=auto&app=138&f=JPEG?w=300&h=300'; this.onerror=null;"
-                >
-            </div>
-            
-            <!-- 3. 月亮效果层（最顶层） -->
-            <div id="moonEffect" class="absolute w-12 h-12 rounded-full bg-yellow-200 shadow-lg opacity-0 transition-opacity duration-500 z-20"></div>
-        </div>
-    </section>
-
-    <!-- 文化诗词区：优化后左右排列画卷 -->
-    <section class="py-16 px-4 bg-white">
-        <div class="max-w-6xl mx-auto text-center mb-12">
-            <h2 class="text-3xl font-serif text-gray-800 text-shadow-sm">诗画·三潭</h2>
-        </div>
-
-        <!-- ########## 外层容器：优化后左右排列 ########## -->
-        <div class="scroll-left-right-container mx-auto">
-            <!-- 左侧画卷：第一首诗词 -->
-            <div class="single-scroll-container">
-                <div class="single-scroll-bg" id="scroll1">
-                    <div class="single-scroll-axis left"></div>
-                    <div class="single-scroll-axis right"></div>
-                    <div class="poem-content">
-                        <h3>《湖山十景·三潭印月》</h3>
-                        <p>宋·王洧</p>
-                        <p>塔边分占宿湖船，宝鉴开匳水接天。
-横玉叫云何处起，波心惊觉老龙眠。</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右侧画卷：第二首诗词 -->
-            <div class="single-scroll-container">
-                <div class="single-scroll-bg" id="scroll2">
-                    <div class="single-scroll-axis left"></div>
-                    <div class="single-scroll-axis right"></div>
-                    <div class="poem-content">
-                        <h3>《三潭印月》</h3>
-                        <p>元·尹廷高</p>
-                        <p>坡仙立塔据平湖，天影清涵水墨图。
-夜静老龙鳞甲冷，冰壶倒浸玉浮图。</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 底部信息区 -->
-    <footer class="py-8 bg-gray-800 text-white text-center">
-        <div class="max-w-6xl mx-auto px-4">
-            <p class="mb-2">三潭印月 · 西湖十景之一 | 全国重点文物保护单位</p>
-            <p class="text-gray-400 text-sm">© 2025 西湖文化景观 · 以诗画绘西湖</p>
-        </div>
-    </footer>
-
-    <!-- 交互脚本 -->
-    <script>
-        // 点击石塔显示月亮效果（兼容原石塔和小石塔）
-        const towerImgs = document.querySelectorAll('.tower-img, .small-tower');
-        const moonEffect = document.getElementById('moonEffect');
         
-        // 容错处理：防止图片加载失败导致脚本报错
-        if (towerImgs.length > 0 && moonEffect) {
-            towerImgs.forEach(towerImg => {
-                towerImg.addEventListener('click', (e) => {
-                    const containerRect = e.target.closest('.max-w-4xl').getBoundingClientRect();
-                    moonEffect.style.left = `${e.clientX - containerRect.left - 24}px`;
-                    moonEffect.style.top = `${e.clientY - containerRect.top - 24}px`;
-                    moonEffect.style.opacity = '1';
-                    
-                    setTimeout(() => {
-                        moonEffect.style.opacity = '0';
-                    }, 1500);
-                });
-            });
-        }
+        <!-- 成功弹窗（初始隐藏） -->
+        <div id="success-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+          <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 animate-scale-up">
+            <div class="text-center">
+              <div class="w-20 h-20 rounded-full bg-jiangnan-green/20 flex items-center justify-center mx-auto mb-6">
+                <i class="fa fa-trophy text-4xl text-jiangnan-green animate-success"></i>
+              </div>
+              <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-kai font-bold text-jiangnan-blue mb-2">恭喜完成！</h2>
+              <p class="text-jiangnan-dark/80 mb-4">你完美拼好了苏堤春晓九景图</p>
+              
+              <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button id="play-again-btn" class="btn-jiangnan bg-jiangnan-blue text-white">
+                  <i class="fa fa-play mr-2"></i>再玩一次
+                </button>
+                <button id="share-btn" class="btn-jiangnan bg-jiangnan-pink text-white">
+                  <i class="fa fa-share-alt mr-2"></i>分享成果
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 苏堤小知识（底部） -->
+    <div class="mt-8 bg-white/90 rounded-xl p-4 max-w-5xl mx-auto animate-fade-in">
+      <h3 class="font-kai text-lg mb-2 flex items-center">
+        <i class="fa fa-book text-jiangnan-green mr-2"></i>苏堤小知识
+      </h3>
+      <p class="text-jiangnan-dark/80">苏堤春晓是西湖十景之首，由北宋苏轼主持修建，全长2.8公里，贯穿西湖南北，六座石拱桥（映波、锁澜、望山、压堤、东浦、跨虹）错落其间，春日桃花柳叶相映，美不胜收。</p>
+    </div>
+  </main>
 
-        // ########## 左右画卷展开逻辑 ##########
-        window.addEventListener('load', () => {
-            const scroll1 = document.getElementById('scroll1'); // 左侧画卷
-            const scroll2 = document.getElementById('scroll2'); // 右侧画卷
+  <!-- 页脚 -->
+  <footer class="bg-jiangnan-dark/90 text-white py-6 px-4">
+    <div class="container mx-auto text-center font-kai">
+      <p>苏堤春晓 · 拖拽拼图 &copy; 2025</p>
+      <p class="text-white/70 text-sm mt-1">春风又绿江南岸，明月何时照我还</p>
+    </div>
+  </footer>
 
-            // 左侧先展开，右侧后展开，保持层次感
-            setTimeout(() => {
-                scroll1.classList.add('active');
-            }, 500);
+  <!-- JavaScript核心逻辑 - 完整修复版 -->
+  <script>
+    // 9张苏堤春晓图片
+    const PUZZLE_IMAGES = [
+      { id: 0, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/ad6eb2b8173443bab4e4cd002da56af4.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=tV0eXD4toHGpHESLexRDKPFwBJU%3D" },
+      { id: 1, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/e908ae0f75c34485ab16074d2ace2187.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=5kJXkIj7%2Bt4NXo8tyfLBjg6BqOA%3D" },
+      { id: 2, url: "https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/2a64fde7337d4e5e89fba4f6a98cd11c.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=oyL91DyC9DGB3YEHaSfSzfXQFEU%3D" },
+      { id: 3, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/305fe67a82a34c5cb5b67adaeb38ffba.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=ByyY8BHTboU9Gc%2F%2FdVB4%2BfffTAI%3D" },
+      { id: 4, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/cf8c45094c144b89963914591775f6d5.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=xTgfR%2BNaRZ3YgMlSbyf6gQtRS44%3D" },
+      { id: 5, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/9560831e52494bcfaa2cc2f29b4e08be.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=n77SFD0yQ5t%2FTWVArcI1GD%2BvxwI%3D" },
+      { id: 6, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/58547b87b476431b8b7f20545f1acf9d.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=BEMatbIdqAkdJooC8gidKdbpQKs%3D" },
+      { id: 7, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/6cbeafe82cca481fa52a1b23b812b9b5.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=m8nkln1kNznS459Th13oyOQHvbw%3D" },
+      { id: 8, url: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/3e9e1aa8b27c49b29d64287e7198aade.jpg~tplv-a9rns2rl98-image.png?rcl=202512151626237E15CE151FE38A49E656&rk3s=8e244e95&rrcfp=dafada99&x-expires=2082011183&x-signature=1VjM7%2FZaqEukSTgth5IgWBCtfJk%3D" }
+    ];
 
-            setTimeout(() => {
-                scroll2.classList.add('active');
-            }, 1500);
+    // 游戏状态管理
+    const gameState = {
+      correctPositions: [0, 1, 2, 3, 4, 5, 6, 7, 8], // 正确的位置映射
+      puzzleGrid: Array(9).fill(null), // 拼图网格当前状态
+      completedCount: 0, // 已完成的拼图块数
+      hintCount: 3, // 剩余提示次数
+      isCompleted: false, // 是否完成
+      shuffledImages: [], // 打乱后的图片数组
+      draggedItem: null, // 当前拖拽的元素
+      draggedFrom: null, // 拖拽来源：'source' 或 'puzzle'
+    };
 
-            // 若想左右画卷同时展开，注释上面两行，启用下面一行
-            // setTimeout(() => { scroll1.classList.add('active'); scroll2.classList.add('active'); }, 500);
+    // DOM元素缓存
+    const elements = {
+      sourceImagesContainer: document.getElementById('source-images'),
+      puzzleGridContainer: document.getElementById('puzzle-grid'),
+      completedCountEl: document.getElementById('completed-count'),
+      hintBtn: document.getElementById('hint-btn'),
+      restartBtn: document.getElementById('restart-btn'),
+      successModal: document.getElementById('success-modal'),
+      playAgainBtn: document.getElementById('play-again-btn'),
+      shareBtn: document.getElementById('share-btn'),
+    };
+
+    // 初始化游戏
+    function initGame() {
+      // 重置游戏状态
+      gameState.puzzleGrid = Array(9).fill(null);
+      gameState.completedCount = 0;
+      gameState.hintCount = 3;
+      gameState.isCompleted = false;
+      gameState.draggedItem = null;
+      gameState.draggedFrom = null;
+      
+      // 打乱图片顺序（用于素材区展示）
+      gameState.shuffledImages = [...PUZZLE_IMAGES].sort(() => Math.random() - 0.5);
+      
+      // 清空容器
+      elements.sourceImagesContainer.innerHTML = '';
+      elements.puzzleGridContainer.innerHTML = '';
+      
+      // 隐藏成功弹窗
+      elements.successModal.classList.add('hidden');
+      
+      // 生成素材区图片
+      generateSourceImages();
+      
+      // 生成拼图网格
+      generatePuzzleGrid();
+      
+      // 更新UI
+      updateCompletedCount();
+      updateHintButton();
+    }
+
+    // 生成素材区图片（可拖拽）
+    function generateSourceImages() {
+      gameState.shuffledImages.forEach(img => {
+        const imgElement = createDraggableImageElement(img, 'source');
+        elements.sourceImagesContainer.appendChild(imgElement);
+      });
+    }
+
+    // 创建可拖拽的图片元素 - 关键修复：确保元素结构简单
+    function createDraggableImageElement(imgInfo, type) {
+      // 1. 创建外层容器
+      const container = document.createElement('div');
+      container.className = type === 'source' ? 'source-img' : 'puzzle-img';
+      container.dataset.imgId = imgInfo.id;
+      container.dataset.type = type;
+      container.draggable = true;
+      container.style.width = '100%';
+      container.style.height = '100%';
+      
+      // 2. 创建图片元素（单独创建，避免嵌套问题）
+      const img = document.createElement('img');
+      img.src = imgInfo.url;
+      img.alt = `苏堤春晓${imgInfo.id+1}`;
+      img.className = 'w-full h-full object-cover rounded-lg aspect-square';
+      img.draggable = false; // 禁止图片本身拖拽，只允许外层容器拖拽
+      
+      // 3. 组装元素
+      container.innerHTML = '';
+      container.appendChild(img);
+      
+      // 4. 绑定拖拽事件
+      container.addEventListener('dragstart', handleDragStart);
+      container.addEventListener('dragend', handleDragEnd);
+      
+      return container;
+    }
+
+    // 生成拼图网格（9个格子）
+    function generatePuzzleGrid() {
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'puzzle-cell';
+        cell.dataset.gridIndex = i;
+        cell.style.minHeight = '100px'; // 关键修复：确保单元格有最小高度
+        
+        // 放置区提示
+        cell.innerHTML = `
+          <div class="placeholder text-gray-400 text-sm">
+            <i class="fa fa-image block mb-1"></i>
+            拖拽图片到这里
+          </div>
+        `;
+        
+        // 拖放事件监听 - 关键修复：绑定到单元格本身
+        cell.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
         });
-    </script>
+        cell.addEventListener('dragenter', (e) => {
+          e.preventDefault();
+          cell.classList.add('drop-zone-highlight');
+        });
+        cell.addEventListener('dragleave', () => {
+          cell.classList.remove('drop-zone-highlight');
+        });
+        cell.addEventListener('drop', handleDrop);
+        
+        elements.puzzleGridContainer.appendChild(cell);
+      }
+    }
+
+    // 拖拽开始 - 关键修复：稳定获取拖拽元素和数据
+    function handleDragStart(e) {
+      // 1. 阻止冒泡，确保获取正确的拖拽元素
+      e.stopPropagation();
+      
+      // 2. 获取最外层的拖拽容器（避免点击图片内部导致的问题）
+      const dragContainer = e.target.closest('[draggable="true"]');
+      if (!dragContainer) return;
+      
+      // 3. 记录拖拽状态
+      gameState.draggedItem = dragContainer;
+      gameState.draggedFrom = dragContainer.dataset.type;
+      
+      // 4. 添加拖拽样式
+      dragContainer.classList.add('dragging');
+      dragContainer.style.opacity = '0.5';
+      
+      // 5. 强制设置拖拽数据（兼容所有浏览器）
+      const imgId = dragContainer.dataset.imgId;
+      e.dataTransfer.setData('text', imgId); // 使用text格式，兼容更多浏览器
+      e.dataTransfer.effectAllowed = 'move';
+      
+      // 6. 修复Firefox拖拽预览
+      e.dataTransfer.setDragImage(dragContainer, 20, 20);
+    }
+
+    // 拖拽结束 - 关键修复：恢复样式
+    function handleDragEnd(e) {
+      e.stopPropagation();
+      
+      const dragContainer = e.target.closest('[draggable="true"]');
+      if (dragContainer) {
+        dragContainer.classList.remove('dragging');
+        dragContainer.style.opacity = '1';
+      }
+      
+      // 移除所有单元格的高亮
+      document.querySelectorAll('.puzzle-cell').forEach(cell => {
+        cell.classList.remove('drop-zone-highlight');
+      });
+      
+      // 重置拖拽状态
+      gameState.draggedItem = null;
+      gameState.draggedFrom = null;
+    }
+
+    // 放置图片 - 核心修复：确保DOM操作顺序正确
+    function handleDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 1. 获取目标单元格
+      const cell = e.target.closest('.puzzle-cell');
+      if (!cell) return;
+      const gridIndex = parseInt(cell.dataset.gridIndex);
+      
+      // 2. 获取拖拽的图片ID（兼容不同数据格式）
+      const imgIdStr = e.dataTransfer.getData('text') || e.dataTransfer.getData('text/plain');
+      const imgId = parseInt(imgIdStr);
+      if (isNaN(imgId)) return; // 无效ID直接返回
+      
+      // 3. 移除高亮
+      cell.classList.remove('drop-zone-highlight');
+      
+      // 4. 获取图片信息
+      const imgInfo = PUZZLE_IMAGES.find(img => img.id === imgId);
+      if (!imgInfo) return; // 图片信息不存在直接返回
+      
+      // 5. 根据拖拽来源处理
+      if (gameState.draggedFrom === 'source') {
+        // 从素材区拖到拼图区
+        placeImageInPuzzleCell(cell, gridIndex, imgInfo);
+      } else if (gameState.draggedFrom === 'puzzle') {
+        // 从拼图区拖到另一个拼图单元格
+        moveImageBetweenPuzzleCells(cell, gridIndex, imgInfo);
+      }
+      
+      // 6. 检查游戏完成状态
+      checkGameCompletion();
+    }
+
+    // 将图片放置到拼图单元格 - 关键修复：DOM操作顺序
+    function placeImageInPuzzleCell(cell, gridIndex, imgInfo) {
+      try {
+        // 1. 如果目标单元格已有图片，先放回素材区
+        if (gameState.puzzleGrid[gridIndex] !== null) {
+          const existingImgId = gameState.puzzleGrid[gridIndex];
+          returnImageToSource(existingImgId);
+        }
+        
+        // 2. 清空目标单元格（关键：先清空再添加）
+        cell.innerHTML = '';
+        
+        // 3. 移除素材区的原图片
+        removeSourceImage(imgInfo.id);
+        
+        // 4. 创建拼图区图片元素并添加
+        const puzzleImg = createDraggableImageElement(imgInfo, 'puzzle');
+        cell.appendChild(puzzleImg);
+        
+        // 5. 更新单元格样式和游戏状态
+        cell.classList.add('filled');
+        gameState.puzzleGrid[gridIndex] = imgInfo.id;
+        
+        // 6. 检查是否放置正确
+        checkPuzzleCellAccuracy(cell, gridIndex, imgInfo.id);
+        
+        // 7. 强制DOM重绘（解决渲染延迟）
+        cell.offsetHeight;
+        
+        // 8. 更新完成数量
+        updateCompletedCount();
+        
+      } catch (error) {
+        console.error('放置图片失败:', error);
+      }
+    }
+
+    // 在拼图单元格之间移动图片 - 关键修复：确保状态同步
+    function moveImageBetweenPuzzleCells(targetCell, targetIndex, imgInfo) {
+      try {
+        // 1. 找到源单元格索引
+        const sourceIndex = gameState.puzzleGrid.findIndex(id => id === imgInfo.id);
+        if (sourceIndex === -1 || sourceIndex === targetIndex) return;
+        
+        // 2. 获取源单元格
+        const sourceCell = document.querySelectorAll('.puzzle-cell')[sourceIndex];
+        if (!sourceCell) return;
+        
+        // 3. 保存目标单元格原有图片ID
+        const targetImgId = gameState.puzzleGrid[targetIndex];
+        
+        // 4. 清空源单元格
+        sourceCell.innerHTML = `
+          <div class="placeholder text-gray-400 text-sm">
+            <i class="fa fa-image block mb-1"></i>
+            拖拽图片到这里
+          </div>
+        `;
+        sourceCell.classList.remove('filled', 'correct', 'incorrect');
+        gameState.puzzleGrid[sourceIndex] = null;
+        
+        // 5. 如果目标单元格有图片，移动到源单元格
+        if (targetImgId !== null) {
+          const targetImgInfo = PUZZLE_IMAGES.find(img => img.id === targetImgId);
+          if (targetImgInfo) {
+            sourceCell.innerHTML = '';
+            const sourceImg = createDraggableImageElement(targetImgInfo, 'puzzle');
+            sourceCell.appendChild(sourceImg);
+            sourceCell.classList.add('filled');
+            gameState.puzzleGrid[sourceIndex] = targetImgId;
+            checkPuzzleCellAccuracy(sourceCell, sourceIndex, targetImgId);
+          }
+        }
+        
+        // 6. 清空目标单元格并添加新图片
+        targetCell.innerHTML = '';
+        const targetImg = createDraggableImageElement(imgInfo, 'puzzle');
+        targetCell.appendChild(targetImg);
+        targetCell.classList.add('filled');
+        gameState.puzzleGrid[targetIndex] = imgInfo.id;
+        checkPuzzleCellAccuracy(targetCell, targetIndex, imgInfo.id);
+        
+        // 7. 强制DOM重绘
+        sourceCell.offsetHeight;
+        targetCell.offsetHeight;
+        
+        // 8. 更新完成数量
+        updateCompletedCount();
+        
+      } catch (error) {
+        console.error('移动图片失败:', error);
+      }
+    }
+
+    // 检查拼图单元格放置是否正确
+    function checkPuzzleCellAccuracy(cell, gridIndex, imgId) {
+      cell.classList.remove('correct', 'incorrect');
+      
+      if (imgId === gameState.correctPositions[gridIndex]) {
+        cell.classList.add('correct');
+      } else {
+        cell.classList.add('incorrect');
+        setTimeout(() => {
+          cell.classList.remove('incorrect');
+        }, 500);
+      }
+    }
+
+    // 移除素材区的图片
+    function removeSourceImage(imgId) {
+      const sourceImages = document.querySelectorAll('.source-img');
+      sourceImages.forEach(img => {
+        if (parseInt(img.dataset.imgId) === imgId) {
+          img.remove();
+        }
+      });
+    }
+
+    // 将图片放回素材区
+    function returnImageToSource(imgId) {
+      const imgInfo = PUZZLE_IMAGES.find(img => img.id === imgId);
+      if (!imgInfo) return;
+      
+      // 先检查素材区是否已有该图片
+      const existing = Array.from(document.querySelectorAll('.source-img')).find(
+        el => parseInt(el.dataset.imgId) === imgId
+      );
+      if (existing) return;
+      
+      const imgElement = createDraggableImageElement(imgInfo, 'source');
+      elements.sourceImagesContainer.appendChild(imgElement);
+    }
+
+    // 更新完成数量显示
+    function updateCompletedCount() {
+      // 计算正确放置的拼图数量
+      gameState.completedCount = gameState.puzzleGrid.reduce((count, imgId, index) => {
+        return imgId === gameState.correctPositions[index] ? count + 1 : count;
+      }, 0);
+      
+      elements.completedCountEl.textContent = `${gameState.completedCount}/9`;
+    }
+
+    // 更新提示按钮状态
+    function updateHintButton() {
+      elements.hintBtn.innerHTML = `
+        <i class="fa fa-lightbulb-o mr-2"></i>提示 (${gameState.hintCount}次)
+      `;
+      
+      if (gameState.hintCount <= 0 || gameState.isCompleted) {
+        elements.hintBtn.disabled = true;
+        elements.hintBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        elements.hintBtn.disabled = false;
+        elements.hintBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    // 检查游戏是否完成
+    function checkGameCompletion() {
+      if (gameState.completedCount === 9 && !gameState.isCompleted) {
+        gameState.isCompleted = true;
+        setTimeout(() => {
+          elements.successModal.classList.remove('hidden');
+        }, 500);
+      }
+    }
+
+    // 提示功能
+    function showHint() {
+      if (gameState.hintCount <= 0 || gameState.isCompleted) return;
+      
+      // 找到第一个未完成的位置
+      const emptyIndex = gameState.puzzleGrid.findIndex((val, index) => {
+        return val !== gameState.correctPositions[index];
+      });
+      
+      if (emptyIndex !== -1) {
+        // 获取正确的图片ID
+        const correctImgId = gameState.correctPositions[emptyIndex];
+        
+        // 高亮拼图位置
+        const puzzleCells = document.querySelectorAll('.puzzle-cell');
+        const targetCell = puzzleCells[emptyIndex];
+        targetCell.classList.add('ring-4', 'ring-jiangnan-pink', 'animate-scale-up');
+        
+        // 查找对应的图片
+        let targetImg = null;
+        const sourceImages = document.querySelectorAll('.source-img');
+        sourceImages.forEach(img => {
+          if (parseInt(img.dataset.imgId) === correctImgId) {
+            targetImg = img;
+          }
+        });
+        
+        if (!targetImg) {
+          const puzzleImages = document.querySelectorAll('.puzzle-img');
+          puzzleImages.forEach(img => {
+            if (parseInt(img.dataset.imgId) === correctImgId) {
+              targetImg = img;
+            }
+          });
+        }
+        
+        // 高亮图片
+        if (targetImg) {
+          targetImg.classList.add('ring-4', 'ring-jiangnan-green', 'animate-scale-up');
+          setTimeout(() => {
+            targetImg.classList.remove('ring-4', 'ring-jiangnan-green', 'animate-scale-up');
+          }, 3000);
+        }
+        
+        // 3秒后移除拼图位置高亮
+        setTimeout(() => {
+          targetCell.classList.remove('ring-4', 'ring-jiangnan-pink', 'animate-scale-up');
+        }, 3000);
+        
+        // 减少提示次数
+        gameState.hintCount--;
+        updateHintButton();
+      }
+    }
+
+    // 绑定事件监听
+    function bindEvents() {
+      // 重新开始
+      elements.restartBtn.addEventListener('click', initGame);
+      
+      // 提示按钮
+      elements.hintBtn.addEventListener('click', showHint);
+      
+      // 再玩一次
+      elements.playAgainBtn.addEventListener('click', initGame);
+      
+      // 分享按钮（模拟）
+      elements.shareBtn.addEventListener('click', () => {
+        alert('恭喜！你已成功拼出苏堤春晓九宫格，快来分享给好友吧～');
+      });
+      
+      // 关键修复：允许将拼图拖回素材区
+      elements.sourceImagesContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+      
+      elements.sourceImagesContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const imgIdStr = e.dataTransfer.getData('text') || e.dataTransfer.getData('text/plain');
+        const imgId = parseInt(imgIdStr);
+        if (!isNaN(imgId) && gameState.draggedFrom === 'puzzle') {
+          // 从拼图区拖回素材区
+          const sourceIndex = gameState.puzzleGrid.findIndex(id => id === imgId);
+          if (sourceIndex !== -1) {
+            const sourceCell = document.querySelectorAll('.puzzle-cell')[sourceIndex];
+            sourceCell.innerHTML = `
+              <div class="placeholder text-gray-400 text-sm">
+                <i class="fa fa-image block mb-1"></i>
+                拖拽图片到这里
+              </div>
+            `;
+            sourceCell.classList.remove('filled', 'correct', 'incorrect');
+            gameState.puzzleGrid[sourceIndex] = null;
+            returnImageToSource(imgId);
+            updateCompletedCount();
+          }
+        }
+      });
+    }
+
+    // 页面加载完成初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      bindEvents();
+      initGame();
+    });
+  </script>
 </body>
 </html>
